@@ -1,0 +1,63 @@
+package com.pozar
+ 
+import com.pozar.DroolsPozar.*
+
+rule "Zapal"
+	when
+	
+	then
+		insert(new Pomiar(10, true));
+end
+
+rule "Hehe"
+	when
+	
+	then
+		insert(new Pomiar(10, true));
+end
+
+rule "Pali sie"
+    when
+        exists Pomiar( dym == true || temperatura >= 150)
+    then
+        insert(new Pozar("Pali sie"));
+end
+
+rule "Pozar"
+	when
+		p : Pozar(myMessage : message)
+	then
+		System.out.println( myMessage );
+end
+
+rule "Telefon"
+	when
+		p : Pozar()
+	then
+		insert(new Telefon(112));
+end
+
+rule "Dzwon"
+	when
+		t : Telefon()
+	then
+		System.out.println("Prosze zadzwonic na numer " + t.getNumer());
+end
+
+rule "Straz"
+	when
+		s : Straz()
+		p : Pozar()
+	then
+		System.out.println("Straz przyjechala");
+		retract(p);
+end
+
+rule "Odjazd Strazy"
+	when
+		s : Straz()
+		not Pozar()
+	then
+		System.out.println("Straz odjechala");
+		retract(s)
+end
