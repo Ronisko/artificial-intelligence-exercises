@@ -1,0 +1,226 @@
+package com.sample
+ 
+import com.sample.DroolsTest.Samochod;
+import com.sample.DroolsTest.Klient;
+import com.sample.DroolsTest.Rezerwacja;
+import com.sample.DroolsTest.Zwrot;
+	
+rule "Poczatek"
+    when
+        
+    then
+        insert(new Samochod("A"));
+        insert(new Samochod("A"));
+        insert(new Samochod("B"));
+        insert(new Samochod("D"));
+        insert(new Samochod("D"));
+end
+
+rule "Cena auta A"
+	when
+		s : Samochod( klasa == "A" )
+	then
+		s.cenaPodst = 69;
+		s.cenaObn = 59;
+end
+
+rule "Cena auta B"
+	when
+		s : Samochod( klasa == "B" )
+	then
+		s.cenaPodst = 79;
+		s.cenaObn = 69;
+end
+
+rule "Cena auta D"
+	when
+		s : Samochod( klasa == "D" )
+	then
+		s.cenaPodst = 89;
+		s.cenaObn = 79;
+end
+
+rule "Nie mozna zarezerwowac"
+	when
+		r : Rezerwacja()
+		exists Rezerwacja(klient == r.klient, samochod != null, samochod.konflikt(r.poczWyp, r.konWyp) == true)
+	then
+		System.out.println("Nie mozna zarezerwowac samochodu w danym terminie");
+		retract(r);	
+end
+
+rule "Bez klasy A"
+	when
+		r : Rezerwacja(klasa == null)
+		s : Samochod(klasa == "A", konflikt(r.poczWyp, r.konWyp) == false)
+	then
+		r.klasa = "A";
+		update(r);
+		//System.out.println("bez samochodu na A, bo jakis jest");
+end
+
+rule "Bez klasy B"
+	when
+		r : Rezerwacja(klasa == null)
+		s : Samochod(klasa == "B", konflikt(r.poczWyp, r.konWyp) == false)
+	then
+		r.klasa = "B";
+		update(r);
+		//System.out.println("bez samochodu na B, bo jakis jest");
+end
+
+rule "Bez klasy D"
+	when
+		r : Rezerwacja(klasa == null)
+		s : Samochod(klasa == "D", konflikt(r.poczWyp, r.konWyp) == false)
+	then
+		r.klasa = "D";
+		update(r);
+		//System.out.println("bez samochodu na D, bo jakis jest");
+end
+//do tego momentu wszystko sponio
+
+rule "Przypisanie samochodu jesli jest + jego kosztu"
+no-loop true
+	when
+		r : Rezerwacja(samochod == null)
+		s : Samochod(klasa == r.klasa, konflikt(r.poczWyp, r.konWyp) == false)
+	then
+		r.samochod = s;
+		s.poczWyp.add(r.poczWyp);
+		s.konWyp.add(r.konWyp);
+		if (r.liczbaDni > 3) {
+			r.koszt = (s.cenaObn*r.liczbaDni);
+			r.kosztDnia = s.cenaObn;
+		} else {
+			r.koszt = (s.cenaPodst*r.liczbaDni);
+			r.kosztDnia = s.cenaPodst;
+		}
+		update(s);
+		update(r);
+end
+
+rule "Przypisanie samochodu B do A"
+	when
+		r : Rezerwacja(samochod == null, klasa == "A")
+		s : Samochod(klasa == "B", konflikt(r.poczWyp, r.konWyp) == false)
+		s1 : Samochod(klasa == "A")
+	then
+		r.samochod = s;
+		s.poczWyp.add(r.poczWyp);
+		s.konWyp.add(r.konWyp);
+		if (r.liczbaDni > 3) {
+			r.koszt = (s1.cenaObn*r.liczbaDni);
+			r.kosztDnia = s1.cenaObn;
+		} else {
+			r.koszt = (s1.cenaPodst*r.liczbaDni);
+			r.kosztDnia = s1.cenaPodst;
+		}
+		update(s);
+		update(r);
+end
+
+rule "Przypisanie samochodu D do A lub B"
+	when
+		r : Rezerwacja(samochod == null, klasa == "A" || klasa == "B")
+		s : Samochod(klasa == "D", konflikt(r.poczWyp, r.konWyp) == false)
+		s1 : Samochod(klasa == "A")
+		s2 : Samochod(klasa == "B")
+	then
+		r.samochod = s;
+		s.poczWyp.add(r.poczWyp);
+		s.konWyp.add(r.konWyp);
+		if (r.liczbaDni > 3) {
+			if (r.klasa == "A") {
+				r.koszt = (s1.cenaObn*r.liczbaDni);
+				r.kosztDnia = s1.cenaObn;
+			} else {
+				r.koszt = (s2.cenaObn*r.liczbaDni);
+				r.kosztDnia = s2.cenaObn;
+			}
+		} else {
+			if (r.klasa == "A") {
+				r.koszt = (s1.cenaPodst*r.liczbaDni);
+				r.koszt = s1.cenaPodst;
+			} else {
+				r.koszt = (s2.cenaPodst*r.liczbaDni);
+				r.kosztDnia = s2.cenaPodst;
+			}
+		}
+		update(s);
+		update(r);
+end
+
+rule "Fotelik"
+	when
+		r : Rezerwacja(fotelik == true)
+	then
+		r.koszt = r.koszt +  10;
+end
+
+rule "Bagaznik"
+	when
+		r : Rezerwacja(bagaznik == true)
+	then
+		r.koszt = r.koszt + 10;
+end
+
+rule "Program lojalnosciowy"
+	when
+		r : Rezerwacja(klient.program == true && (bagaznik == true || fotelik == true))
+	then
+		r.koszt = r.koszt - 10;
+end
+
+rule "Oplata na wejsciu"
+	when
+		r : Rezerwacja()
+	then
+		System.out.println(r.klient.imie + " placi " + r.koszt + " podczas rezerwacji.");
+end
+
+rule "Zwrot dystans 0.5"
+	when
+		z : Zwrot(rez.liczbaDni > 3)
+	then
+		z.koszt = z.dystans / 2;
+end
+
+rule "Zwrot dystans 1"
+	when
+		z : Zwrot(rez.liczbaDni <= 3)
+	then
+		z.koszt = z.dystans;
+end
+
+rule "Opoznienie"
+	when
+		z : Zwrot(rez.konWyp != dataZwr)
+	then
+		z.koszt = z.koszt + (3 * z.rez.kosztDnia * z.ileDni(z.rez.konWyp, z.dataZwr));
+end
+
+rule "Brak dowodu"
+	when
+		z : Zwrot(zgubDowod == true)
+	then
+		z.koszt = z.koszt + 500;
+end
+
+rule "Kolpaki"
+	when
+		z : Zwrot(liczbaZgubKolp > 0)
+	then
+		z.koszt = z.koszt + (z.liczbaZgubKolp * 20);
+end
+
+rule "Calkowity koszt zwrotu"
+	when
+		z : Zwrot()
+	then
+		System.out.println("Koszt zwrotu wyniosl " + z.koszt);
+end
+
+
+
+
